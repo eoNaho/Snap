@@ -99,7 +99,7 @@ public class SnapTitle implements Title {
                 ((SnapPlayer) player).getPlayer().showTitle(net.kyori.adventure.title.Title.title(
                         SnapUtils.convertComponent(title),
                         SnapUtils.convertComponent(subTitle),
-                        net.kyori.adventure.title.Title.Times.of(
+                        net.kyori.adventure.title.Title.Times.times(
                                 Duration.ofMillis(fadeIn * 50),
                                 Duration.ofMillis(stay * 50),
                                 Duration.ofMillis(fadeOut * 50)

@@ -7,6 +7,7 @@ import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.api.config.ConfigurationAdapter;
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
+import net.md_5.bungee.api.plugin.Plugin;
 import net.md_5.bungee.api.plugin.PluginManager;
 import net.md_5.bungee.api.scheduler.TaskScheduler;
 
@@ -31,7 +32,16 @@ public class BungeeCord extends ProxyServer {
             Class<?> caller = callerOptional.get();
             if (!authorNagSet.contains(caller)) {
                 authorNagSet.add(caller);
-                Snap.logger().warn("Plugin class {} is calling BungeeCord internal class, which is not recommended, report this to the author.", caller.getName());
+                if (Plugin.class.isAssignableFrom(caller)) {
+                    var plugins = SnapProxyServer.getInstance().getPluginManager().getPlugins();
+                    for (Plugin plugin : plugins) {
+                        if (plugin.getClass() == caller) {
+                            Snap.logger().warn("Plugin {} is calling deprecated BungeeCord internals, report this to the author.", plugin.getDescription().getName());
+                        }
+                    }
+                } else {
+                    Snap.logger().warn("Plugin class {} is calling deprecated BungeeCord internals, report this to the author.", caller.getName());
+                }
             }
         }
         return instance;
