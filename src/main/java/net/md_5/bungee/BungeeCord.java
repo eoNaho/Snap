@@ -22,25 +22,28 @@ import java.util.logging.Logger;
  */
 @SuppressWarnings({"unused", "deprecation"})
 public class BungeeCord extends ProxyServer {
+    private static final boolean DISABLE_AUTHOR_NAG = Boolean.getBoolean("snap.noMoreAuthorNag");
     private static final BungeeCord instance = new BungeeCord();
     private static final Set<Class<?>> authorNagSet = new HashSet<>();
     private final ProxyServer snapProxy = SnapProxyServer.getInstance();
 
     public static BungeeCord getInstance() {
-        Optional<? extends Class<?>> callerOptional = StackWalker.getInstance(Set.of(StackWalker.Option.RETAIN_CLASS_REFERENCE), 1).walk(s -> s.map(StackWalker.StackFrame::getDeclaringClass).skip(1).findFirst());
-        if (callerOptional.isPresent()) {
-            Class<?> caller = callerOptional.get();
-            if (!authorNagSet.contains(caller)) {
-                authorNagSet.add(caller);
-                if (Plugin.class.isAssignableFrom(caller)) {
-                    var plugins = SnapProxyServer.getInstance().getPluginManager().getPlugins();
-                    for (Plugin plugin : plugins) {
-                        if (plugin.getClass() == caller) {
-                            Snap.logger().warn("Plugin {} is calling deprecated BungeeCord internals, report this to the author.", plugin.getDescription().getName());
+        if (!DISABLE_AUTHOR_NAG) {
+            Optional<? extends Class<?>> callerOptional = StackWalker.getInstance(Set.of(StackWalker.Option.RETAIN_CLASS_REFERENCE), 1).walk(s -> s.map(StackWalker.StackFrame::getDeclaringClass).skip(1).findFirst());
+            if (callerOptional.isPresent()) {
+                Class<?> caller = callerOptional.get();
+                if (!authorNagSet.contains(caller)) {
+                    authorNagSet.add(caller);
+                    if (Plugin.class.isAssignableFrom(caller)) {
+                        var plugins = SnapProxyServer.getInstance().getPluginManager().getPlugins();
+                        for (Plugin plugin : plugins) {
+                            if (plugin.getClass() == caller) {
+                                Snap.logger().warn("Plugin {} is calling deprecated BungeeCord internals, report this to the author.", plugin.getDescription().getName());
+                            }
                         }
+                    } else {
+                        Snap.logger().warn("Plugin class {} is calling deprecated BungeeCord internals, report this to the author.", caller.getName());
                     }
-                } else {
-                    Snap.logger().warn("Plugin class {} is calling deprecated BungeeCord internals, report this to the author.", caller.getName());
                 }
             }
         }
