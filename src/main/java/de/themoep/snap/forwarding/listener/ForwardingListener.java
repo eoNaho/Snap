@@ -111,6 +111,12 @@ public abstract class ForwardingListener {
             }
 
             @Override
+            public CompletableFuture<byte[]> sendData(String s, byte[] bytes) {
+                snap.unsupported("Not implemented yet");
+                return CompletableFuture.completedFuture(null);
+            }
+
+            @Override
             public InetSocketAddress getAddress() {
                 return connection.getRemoteAddress();
             }

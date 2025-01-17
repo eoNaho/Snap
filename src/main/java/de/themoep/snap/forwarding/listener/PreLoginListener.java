@@ -119,6 +119,12 @@ public class PreLoginListener extends ForwardingListener {
             }
 
             @Override
+            public CompletableFuture<byte[]> sendData(String s, byte[] bytes) {
+                snap.unsupported("Not implemented yet");
+                return CompletableFuture.completedFuture(null);
+            }
+
+            @Override
             public InetSocketAddress getAddress() {
                 return event.getConnection().getRemoteAddress();
             }

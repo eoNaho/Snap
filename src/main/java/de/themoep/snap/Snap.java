@@ -32,7 +32,7 @@ import java.util.logging.LogManager;
 
 public class Snap {
     private final ProxyServer proxy;
-    private final Logger logger;
+    private static Logger logger;
     private final Path dataFolder;
     private SnapBungeeAdapter bungeeAdapter;
 
@@ -202,5 +202,9 @@ public class Snap {
 
     public boolean isTransferred(UUID playerId) {
         return transferred.contains(playerId);
+    }
+
+    public static Logger logger() {
+        return logger;
     }
 }
