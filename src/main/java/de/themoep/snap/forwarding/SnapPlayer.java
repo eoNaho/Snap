@@ -56,6 +56,10 @@ import java.util.stream.Collectors;
 public class SnapPlayer extends SnapCommandSender implements ProxiedPlayer {
     private final Player player;
     private final PendingConnection connection;
+    /*
+     * The channel wrapper is used for BungeeCord plugin compatibility.
+    */
+    @SuppressWarnings("all")
     private final ChannelWrapper ch;
     private String displayName;
 
