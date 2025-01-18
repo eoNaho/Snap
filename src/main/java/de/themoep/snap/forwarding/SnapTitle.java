@@ -100,9 +100,9 @@ public class SnapTitle implements Title {
                         SnapUtils.convertComponent(title),
                         SnapUtils.convertComponent(subTitle),
                         net.kyori.adventure.title.Title.Times.times(
-                                Duration.ofMillis(fadeIn * 50),
-                                Duration.ofMillis(stay * 50),
-                                Duration.ofMillis(fadeOut * 50)
+                                Duration.ofMillis(fadeIn * 50L),
+                                Duration.ofMillis(stay * 50L),
+                                Duration.ofMillis(fadeOut * 50L)
                         )
                 ));
             }

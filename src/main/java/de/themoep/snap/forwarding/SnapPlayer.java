@@ -41,6 +41,7 @@ import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.connection.Server;
 import net.md_5.bungee.api.event.ServerConnectEvent;
 import net.md_5.bungee.api.score.Scoreboard;
+import net.md_5.bungee.netty.ChannelWrapper;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -55,6 +56,7 @@ import java.util.stream.Collectors;
 public class SnapPlayer extends SnapCommandSender implements ProxiedPlayer {
     private final Player player;
     private final PendingConnection connection;
+    private final ChannelWrapper ch;
     private String displayName;
 
     public SnapPlayer(Snap snap, Player player) {
@@ -163,6 +165,7 @@ public class SnapPlayer extends SnapCommandSender implements ProxiedPlayer {
             }
         };
         displayName = player.getUsername();
+        ch = new ChannelWrapper(SnapUtils.getPlayerChannel(player));
     }
 
     public Player getPlayer() {

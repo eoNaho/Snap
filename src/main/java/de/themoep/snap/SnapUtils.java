@@ -18,6 +18,7 @@ package de.themoep.snap;
  * License along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.messages.ChannelIdentifier;
 import com.velocitypowered.api.proxy.messages.LegacyChannelIdentifier;
 import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier;
@@ -25,6 +26,8 @@ import com.velocitypowered.api.proxy.server.ServerPing.Players;
 import com.velocitypowered.api.proxy.server.ServerPing.SamplePlayer;
 import com.velocitypowered.api.proxy.server.ServerPing.Version;
 import com.velocitypowered.api.util.ModInfo;
+import com.velocitypowered.proxy.connection.client.ConnectedPlayer;
+import io.netty.channel.Channel;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.bungeecord.BungeeComponentSerializer;
 import net.md_5.bungee.api.Favicon;
@@ -53,6 +56,10 @@ public class SnapUtils {
         } catch (IllegalArgumentException e) {
             return def;
         }
+    }
+
+    public static Channel getPlayerChannel(Player player) {
+        return ((ConnectedPlayer) player).getConnection().getChannel();
     }
 
     public static BaseComponent[] convertComponent(Component component) {

@@ -21,7 +21,7 @@ import java.util.logging.Logger;
  * Class for redirecting method calls from dumb plugins.
  */
 @SuppressWarnings({"unused", "deprecation"})
-public class BungeeCord extends ProxyServer {
+public final class BungeeCord extends ProxyServer {
     private static final boolean DISABLE_AUTHOR_NAG = Boolean.getBoolean("snap.noMoreAuthorNag");
     private static final BungeeCord instance = new BungeeCord();
     private static final Set<Class<?>> authorNagSet = new HashSet<>();
