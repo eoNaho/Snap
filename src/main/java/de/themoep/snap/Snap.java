@@ -58,7 +58,7 @@ public class Snap {
     @Inject
     public Snap(ProxyServer proxy, Logger logger, @DataDirectory Path dataFolder) {
         this.proxy = proxy;
-        this.logger = logger;
+        Snap.logger = logger;
         this.dataFolder = dataFolder;
     }
 

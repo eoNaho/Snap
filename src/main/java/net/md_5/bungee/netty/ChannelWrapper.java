@@ -4,7 +4,7 @@ import com.google.common.base.Preconditions;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
-import io.netty.util.concurrent.GenericFutureListener;
+
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 
@@ -57,10 +57,16 @@ public class ChannelWrapper {
     }
 
     public MinecraftDecoder getMinecraftDecoder() {
+        if (true) {
+            throw new UnsupportedOperationException("Not implemented yet"); // TODO: Implement
+        }
         return (MinecraftDecoder)this.ch.pipeline().get(MinecraftDecoder.class);
     }
 
     public MinecraftEncoder getMinecraftEncoder() {
+        if (true) {
+            throw new UnsupportedOperationException("Not implemented yet"); // TODO: Implement
+        }
         return (MinecraftEncoder)this.ch.pipeline().get(MinecraftEncoder.class);
     }
 
@@ -72,10 +78,9 @@ public class ChannelWrapper {
         if (!this.closed) {
             Protocol nextProtocol;
             DefinedPacket defined = null;
-            if (packet instanceof PacketWrapper) {
-                PacketWrapper wrapper = (PacketWrapper)packet;
+            if (packet instanceof PacketWrapper wrapper) {
                 wrapper.setReleased(true);
-                this.ch.writeAndFlush((Object)wrapper.buf, this.ch.voidPromise());
+                this.ch.writeAndFlush(wrapper.buf, this.ch.voidPromise());
                 defined = wrapper.packet;
             } else {
                 this.ch.writeAndFlush(packet, this.ch.voidPromise());
@@ -103,7 +108,7 @@ public class ChannelWrapper {
             this.closing = true;
             this.closed = true;
             if (packet != null && this.ch.isActive()) {
-                this.ch.writeAndFlush(packet).addListeners(new GenericFutureListener[]{ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE, ChannelFutureListener.CLOSE});
+                this.ch.writeAndFlush(packet).addListeners(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE, ChannelFutureListener.CLOSE);
             } else {
                 this.ch.flush();
                 this.ch.close();
@@ -119,7 +124,7 @@ public class ChannelWrapper {
     }
 
     public void addBefore(String baseName, String name, ChannelHandler handler) {
-        Preconditions.checkState((boolean)this.ch.eventLoop().inEventLoop(), (Object)"cannot add handler outside of event loop");
+        Preconditions.checkState(this.ch.eventLoop().inEventLoop(), "cannot add handler outside of event loop");
         this.ch.pipeline().flush();
         this.ch.pipeline().addBefore(baseName, name, handler);
     }
