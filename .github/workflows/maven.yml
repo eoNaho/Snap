@@ -34,4 +34,4 @@ jobs:
                   automatic_release_tag: "snap"
                   repo_token: "${{ secrets.GITHUB_TOKEN }}"
                   files: "./target/snap.jar"
-                  prerelease: true
+                  prerelease: false
