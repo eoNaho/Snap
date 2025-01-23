@@ -26,3 +26,12 @@ jobs:
               with:
                   name: Snap artifact
                   path: ./target/snap.jar
+            - name: Release Snap
+              if: github.event_name != 'pull_request'
+              uses: marvinpinto/action-automatic-releases@master
+              with:
+                  title: "Snap"
+                  automatic_release_tag: "snap"
+                  repo_token: "${{ secrets.GITHUB_TOKEN }}"
+                  files: "./target/snap.jar"
+                  prerelease: true
