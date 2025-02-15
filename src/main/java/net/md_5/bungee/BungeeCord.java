@@ -15,40 +15,48 @@ import java.io.File;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 /**
- * Class for redirecting method calls from dumb plugins.
+ * Class for redirecting method calls from plugins que usam métodos depreciados.
  */
 @SuppressWarnings({"unused", "deprecation"})
 public final class BungeeCord extends ProxyServer {
     private static final boolean DISABLE_AUTHOR_NAG = Boolean.getBoolean("snap.noMoreAuthorNag");
     private static final BungeeCord instance = new BungeeCord();
-    private static final Set<Class<?>> authorNagSet = new HashSet<>();
+    private static final Set<Class<?>> authorNagSet = ConcurrentHashMap.newKeySet(); // Usando Set thread-safe
     private final ProxyServer snapProxy = SnapProxyServer.getInstance();
 
     public static BungeeCord getInstance() {
         if (!DISABLE_AUTHOR_NAG) {
-            Optional<? extends Class<?>> callerOptional = StackWalker.getInstance(Set.of(StackWalker.Option.RETAIN_CLASS_REFERENCE), 1).walk(s -> s.map(StackWalker.StackFrame::getDeclaringClass).skip(1).findFirst());
+            Optional<Class<?>> callerOptional = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE)
+                    .walk(s -> s.skip(1) // Ignora o frame do getInstance()
+                            .findFirst())
+                                            .map(StackWalker.StackFrame::getDeclaringClass);
+
             if (callerOptional.isPresent()) {
                 Class<?> caller = callerOptional.get();
-                if (!authorNagSet.contains(caller)) {
-                    authorNagSet.add(caller);
+                if (authorNagSet.add(caller)) { // Adiciona apenas se não existir, atomicamente
                     if (Plugin.class.isAssignableFrom(caller)) {
-                        var plugins = SnapProxyServer.getInstance().getPluginManager().getPlugins();
-                        for (Plugin plugin : plugins) {
-                            if (plugin.getClass() == caller) {
-                                Snap.logger().warn("Plugin {} is calling deprecated BungeeCord internals, report this to the author.", plugin.getDescription().getName());
-                            }
-                        }
+                        // Busca otimizada pelo plugin usando a classe do caller
+                        SnapProxyServer.getInstance().getPluginManager().getPlugins().stream()
+                                .filter(plugin -> plugin.getClass() == caller)
+                                .findFirst()
+                                .ifPresent(plugin -> Snap.logger().warn(
+                                        "Plugin {} está usando métodos internos depreciados do BungeeCord. Notifique o autor.",
+                                        plugin.getDescription().getName()));
                     } else {
-                        Snap.logger().warn("Plugin class {} is calling deprecated BungeeCord internals, report this to the author.", caller.getName());
+                        Snap.logger().warn(
+                                "A classe {} está usando métodos internos depreciados do BungeeCord. Notifique o autor.",
+                                caller.getName());
                     }
                 }
             }
         }
         return instance;
     }
+
 
     @Override
     public String getName() {
