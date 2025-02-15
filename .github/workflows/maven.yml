@@ -1,37 +1,58 @@
 name: Java CI
 
 on:
-    push:
-    pull_request:
-        branches:
-            - master
+  push:
+  pull_request:
+    branches:
+      - master
 
 jobs:
-    Build:
-        strategy:
-            matrix:
-                jdkversion: [ 21 ]
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
-            - uses: actions/setup-java@v4
-              with:
-                  distribution: 'temurin'
-                  java-version: ${{ matrix.jdkversion }}
-                  cache: 'maven'
-            - name: Build Snap
-              run: mvn -V -B clean package --file pom.xml
-            - name: Upload Artifacts
-              uses: actions/upload-artifact@v4
-              with:
-                  name: Snap artifact
-                  path: ./target/snap.jar
-            - name: Release Snap
-              if: github.event_name != 'pull_request'
-              uses: marvinpinto/action-automatic-releases@master
-              with:
-                  title: "Snap"
-                  automatic_release_tag: "snap"
-                  repo_token: "${{ secrets.GITHUB_TOKEN }}"
-                  files: "./target/snap.jar"
-                  prerelease: false
+  build:
+    strategy:
+      matrix:
+        jdkversion: [21]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Configura Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ matrix.jdkversion }}
+          cache: 'maven'
+
+      - name: Compila e gera pacote
+        run: mvn -V -B clean package --file pom.xml
+
+      - name: Define versão do release
+        run: echo "RELEASE_VERSION=$(date +%Y.%m.%d)-${{ github.run_number }}" >> $GITHUB_ENV
+
+      - name: Faz upload do artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: snap-${{ env.RELEASE_VERSION }}
+          path: ./target/snap.jar
+
+  release:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Baixa artefato compilado
+        uses: actions/download-artifact@v4
+        with:
+          name: snap-${{ env.RELEASE_VERSION }}
+          path: ./target/
+
+      - name: Publica release
+        uses: marvinpinto/action-automatic-releases@latest
+        with:
+          title: "Snap ${{ env.RELEASE_VERSION }}"
+          automatic_release_tag: "snap-${{ env.RELEASE_VERSION }}"
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          files: "./target/snap.jar"
+          prerelease: false
