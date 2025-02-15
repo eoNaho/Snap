@@ -31,6 +31,21 @@ jobs:
           echo "RELEASE_VERSION=$(date +%Y.%m.%d)-${{ github.run_number }}" >> $GITHUB_ENV
           echo "$(date +%Y.%m.%d)-${{ github.run_number }}" > version.txt
 
+      - name: Gera changelog automaticamente
+        run: |
+          echo "## 🚀 Snap ${{ env.RELEASE_VERSION }}" > release_notes.md
+          echo "" >> release_notes.md
+          echo "🔹 **Descrição:**" >> release_notes.md
+          echo "Este release contém as últimas alterações e melhorias do projeto." >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### 🆕 Mudanças recentes:" >> release_notes.md
+          echo "" >> release_notes.md
+          git log --pretty=format:"- %s" -n 10 >> release_notes.md
+          echo "" >> release_notes.md
+          echo "---" >> release_notes.md
+          echo "📁 **Download:**" >> release_notes.md
+          echo "🔗 [snap.jar](./target/snap.jar)" >> release_notes.md
+
       - name: Faz upload do artefato
         uses: actions/upload-artifact@v4
         with:
@@ -42,6 +57,12 @@ jobs:
         with:
           name: version
           path: version.txt
+
+      - name: Faz upload do changelog
+        uses: actions/upload-artifact@v4
+        with:
+          name: release_notes
+          path: release_notes.md
 
   release:
     needs: build
@@ -65,6 +86,12 @@ jobs:
           name: snap
           path: ./target/
 
+      - name: Baixa changelog gerado
+        uses: actions/download-artifact@v4
+        with:
+          name: release_notes
+          path: .
+
       - name: Publica release
         uses: marvinpinto/action-automatic-releases@latest
         with:
@@ -73,3 +100,4 @@ jobs:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           files: "./target/snap.jar"
           prerelease: false
+          body_path: "release_notes.md"
