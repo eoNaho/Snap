@@ -41,33 +41,35 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.security.CodeSigner;
 import java.security.CodeSource;
-import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.md_5.bungee.api.ProxyServer;
 
 final class PluginClassloader extends URLClassLoader {
 
+    private static final Logger LOGGER = Logger.getLogger(PluginClassloader.class.getName());
     private static final Set<PluginClassloader> allLoaders = new CopyOnWriteArraySet<>();
-    //
+
     private final ProxyServer proxy;
     private final PluginDescription desc;
     private final JarFile jar;
     private final Manifest manifest;
     private final URL url;
     private final ClassLoader libraryLoader;
-    //
+
     private Plugin plugin;
 
     public PluginClassloader(ProxyServer proxy, PluginDescription desc, File file, ClassLoader libraryLoader) throws IOException {
-        super(new URL[]{file.toURI().toURL()}, proxy.getClass().getClassLoader()); // Snap - Add parent class loader
+        super(new URL[]{file.toURI().toURL()}, proxy.getClass().getClassLoader());
         this.proxy = proxy;
         this.desc = desc;
         this.jar = new JarFile(file);
-        this.manifest = this.jar.getManifest();
+        this.manifest = jar.getManifest();
         this.url = file.toURI().toURL();
         this.libraryLoader = libraryLoader;
         allLoaders.add(this);
@@ -75,123 +77,99 @@ final class PluginClassloader extends URLClassLoader {
 
     @Override
     protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-        return this.loadClass0(name, resolve, true, true);
+        return loadClass0(name, resolve, true);
     }
 
-    private Class<?> loadClass0(String name, boolean resolve, boolean checkOther, boolean checkLibraries) throws ClassNotFoundException {
+    private Class<?> loadClass0(String name, boolean resolve, boolean checkOther) throws ClassNotFoundException {
+        // 1. Tentar carregar da própria classloader
         try {
             return super.loadClass(name, resolve);
-        } catch (ClassNotFoundException var10) {
-            if (checkLibraries && this.libraryLoader != null) {
-                try {
-                    return this.libraryLoader.loadClass(name);
-                } catch (ClassNotFoundException var9) {
-                    ;
-                }
-            }
+        } catch (ClassNotFoundException ignored) {}
 
-            if (checkOther) {
-                Iterator var5 = allLoaders.iterator();
+        // 2. Tentar carregar das bibliotecas
+        if (libraryLoader != null) {
+            try {
+                return libraryLoader.loadClass(name);
+            } catch (ClassNotFoundException ignored) {}
+        }
 
-                while(true) {
-                    PluginClassloader loader;
-                    do {
-                        if (!var5.hasNext()) {
-                            throw new ClassNotFoundException(name);
-                        }
-
-                        loader = (PluginClassloader)var5.next();
-                    } while(loader == this);
-
+        // 3. Tentar carregar de outros plugins com dependências
+        if (checkOther) {
+            for (PluginClassloader loader : allLoaders) {
+                if (loader != this && proxy.getPluginManager().isTransitiveDepend(desc, loader.desc)) {
                     try {
-                        return loader.loadClass0(name, resolve, false, this.proxy.getPluginManager().isTransitiveDepend(this.desc, loader.desc));
-                    } catch (ClassNotFoundException var8) {
-                        ;
-                    }
+                        return loader.loadClass0(name, resolve, false);
+                    } catch (ClassNotFoundException ignored) {}
                 }
-            } else {
-                throw new ClassNotFoundException(name);
             }
         }
+
+        throw new ClassNotFoundException("Class " + name + " not found for plugin " + desc.getName());
     }
 
+    @Override
     protected Class<?> findClass(String name) throws ClassNotFoundException {
         String path = name.replace('.', '/').concat(".class");
-        JarEntry entry = this.jar.getJarEntry(path);
-        if (entry != null) {
-            byte[] classBytes;
-            try {
-                InputStream is = this.jar.getInputStream(entry);
+        JarEntry entry = jar.getJarEntry(path);
 
-                try {
-                    classBytes = ByteStreams.toByteArray(is);
-                } catch (Throwable var9) {
-                    if (is != null) {
-                        try {
-                            is.close();
-                        } catch (Throwable var8) {
-                            var9.addSuppressed(var8);
-                        }
-                    }
-
-                    throw var9;
-                }
-
-                if (is != null) {
-                    is.close();
-                }
-            } catch (IOException var10) {
-                throw new ClassNotFoundException(name, var10);
-            }
-
-            int dot = name.lastIndexOf(46);
-            if (dot != -1) {
-                String pkgName = name.substring(0, dot);
-                if (this.getPackage(pkgName) == null) {
-                    try {
-                        if (this.manifest != null) {
-                            this.definePackage(pkgName, this.manifest, this.url);
-                        } else {
-                            this.definePackage(pkgName, (String)null, (String)null, (String)null, (String)null, (String)null, (String)null, (URL)null);
-                        }
-                    } catch (IllegalArgumentException var11) {
-                        if (this.getPackage(pkgName) == null) {
-                            throw new IllegalStateException("Cannot find package " + pkgName);
-                        }
-                    }
-                }
-            }
-
-            CodeSigner[] signers = entry.getCodeSigners();
-            CodeSource source = new CodeSource(this.url, signers);
-            return this.defineClass(name, classBytes, 0, classBytes.length, source);
-        } else {
+        if (entry == null) {
             return super.findClass(name);
+        }
+
+        try (InputStream is = jar.getInputStream(entry)) {
+            byte[] classBytes = ByteStreams.toByteArray(is);
+            definePackageIfNeeded(name);
+
+            CodeSource source = new CodeSource(url, entry.getCodeSigners());
+            return defineClass(name, classBytes, 0, classBytes.length, source);
+        } catch (IOException ex) {
+            throw new ClassNotFoundException(name, ex);
         }
     }
 
+    private void definePackageIfNeeded(String className) {
+        int dotIndex = className.lastIndexOf('.');
+        if (dotIndex == -1) return;
+
+        String pkgName = className.substring(0, dotIndex);
+        if (getPackage(pkgName) == null) {
+            try {
+                if (manifest != null) {
+                    definePackage(pkgName, manifest, url);
+                } else {
+                    definePackage(pkgName, null, null, null, null, null, null, null);
+                }
+            } catch (IllegalArgumentException ex) {
+                LOGGER.log(Level.WARNING, "Failed to define package {0} for plugin {1}",
+                        new Object[]{pkgName, desc.getName()});
+            }
+        }
+    }
+
+    @Override
     public void close() throws IOException {
         try {
             super.close();
         } finally {
-            this.jar.close();
+            jar.close();
+            allLoaders.remove(this);
+            LOGGER.log(Level.FINE, "Closed classloader for plugin {0}", desc.getName());
         }
-
     }
 
     void init(Plugin plugin) {
-        Preconditions.checkArgument(plugin != null, "plugin");
-        Preconditions.checkArgument(plugin.getClass().getClassLoader() == this, "Plugin has incorrect ClassLoader");
-        if (this.plugin != null) {
-            throw new IllegalArgumentException("Plugin already initialized!");
-        } else {
-            this.plugin = plugin;
-            plugin.init(this.proxy, this.desc);
-        }
-    }
+        Preconditions.checkArgument(plugin != null, "Plugin cannot be null");
+        Preconditions.checkArgument(plugin.getClass().getClassLoader() == this,
+                "Invalid ClassLoader for plugin %s", desc.getName());
 
-    public String toString() {
-        return "PluginClassloader(desc=" + this.desc + ")";
+        if (this.plugin != null) {
+            throw new IllegalStateException("Plugin already initialized: " + desc.getName());
+        }
+
+        this.plugin = plugin;
+        plugin.init(proxy, desc);
+        LOGGER.log(Level.INFO, "Initialized plugin {0} v{1}",
+                new Object[]{desc.getName(), desc.getVersion()});
     }
 
     static {
